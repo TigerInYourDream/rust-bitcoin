@@ -36,7 +36,10 @@ pub enum InvType {
     /// Witness Block
     WitnessBlock,
     /// Witness Transaction
-    WitnessTransaction
+    WitnessTransaction,
+    /// 新添加类型
+    /// filtered block
+    FilteredBlock,
 }
 
 // Some simple messages
@@ -64,7 +67,7 @@ pub struct GetHeadersMessage {
     /// if possible and block 1 otherwise.
     pub locator_hashes: Vec<sha256d::Hash>,
     /// References the header to stop at, or zero to just fetch the maximum 2000 headers
-    pub stop_hash: sha256d::Hash
+    pub stop_hash: sha256d::Hash,
 }
 
 /// An inventory object --- a reference to a Bitcoin object
@@ -73,7 +76,7 @@ pub struct Inventory {
     /// The type of object that is referenced
     pub inv_type: InvType,
     /// The object's hash
-    pub hash: sha256d::Hash
+    pub hash: sha256d::Hash,
 }
 
 impl ::std::hash::Hash for Inventory {
@@ -88,7 +91,7 @@ impl GetBlocksMessage {
         GetBlocksMessage {
             version: constants::PROTOCOL_VERSION,
             locator_hashes: locator_hashes.clone(),
-            stop_hash: stop_hash
+            stop_hash: stop_hash,
         }
     }
 }
@@ -101,7 +104,7 @@ impl GetHeadersMessage {
         GetHeadersMessage {
             version: constants::PROTOCOL_VERSION,
             locator_hashes: locator_hashes,
-            stop_hash: stop_hash
+            stop_hash: stop_hash,
         }
     }
 }
@@ -119,7 +122,8 @@ impl Encodable for Inventory {
             InvType::Transaction => 1,
             InvType::Block => 2,
             InvType::WitnessBlock => 0x40000002,
-            InvType::WitnessTransaction => 0x40000001
+            InvType::WitnessTransaction => 0x40000001,
+            InvType::FilteredBlock => 3
         }.consensus_encode(&mut s)?;
         Ok(inv_len + self.hash.consensus_encode(&mut s)?)
     }
@@ -134,10 +138,12 @@ impl Decodable for Inventory {
                 0 => InvType::Error,
                 1 => InvType::Transaction,
                 2 => InvType::Block,
+                // add new type
+                3 => InvType::FilteredBlock,
                 // TODO do not fail here
                 _ => { panic!("bad inventory type field") }
             },
-            hash: Decodable::consensus_decode(d)?
+            hash: Decodable::consensus_decode(d)?,
         })
     }
 }
@@ -159,11 +165,16 @@ mod tests {
         let decode: Result<GetBlocksMessage, _> = deserialize(&from_sat);
         assert!(decode.is_ok());
         let real_decode = decode.unwrap();
+        //注意这里打印出来是反的
+        println!("{:#?}", &real_decode);
         assert_eq!(real_decode.version, 70002);
         assert_eq!(real_decode.locator_hashes.len(), 1);
-        assert_eq!(serialize(&real_decode.locator_hashes[0]), genhash);
-        assert_eq!(real_decode.stop_hash, Default::default());
 
+        assert_eq!(serialize(&real_decode.locator_hashes[0]), genhash);
+        println!("{:02x?}", &genhash);
+        println!("{:02x?}", serialize(&real_decode.locator_hashes[0]));
+
+        assert_eq!(real_decode.stop_hash, Default::default());
         assert_eq!(serialize(&real_decode), from_sat);
     }
 
@@ -179,7 +190,6 @@ mod tests {
         assert_eq!(real_decode.locator_hashes.len(), 1);
         assert_eq!(serialize(&real_decode.locator_hashes[0]), genhash);
         assert_eq!(real_decode.stop_hash, Default::default());
-
         assert_eq!(serialize(&real_decode), from_sat);
     }
 }

@@ -14,13 +14,13 @@
 
 //! Network Support
 //!
-//! This module defines support for (de)serialization and network transport 
+//! This module defines support for (de)serialization and network transport
 //! of Bitcoin data and network messages.
 //!
 
+use std::error;
 use std::fmt;
 use std::io;
-use std::error;
 
 pub mod constants;
 
@@ -28,8 +28,9 @@ pub mod address;
 pub use self::address::Address;
 pub mod message;
 pub mod message_blockdata;
-pub mod message_network;
+pub mod message_bloom_filter;
 pub mod message_filter;
+pub mod message_network;
 pub mod stream_reader;
 
 /// Network error
@@ -47,7 +48,9 @@ impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             Error::Io(ref e) => fmt::Display::fmt(e, f),
-            Error::SocketMutexPoisoned | Error::SocketNotConnectedToPeer => f.write_str(error::Error::description(self)),
+            Error::SocketMutexPoisoned | Error::SocketNotConnectedToPeer => {
+                f.write_str(error::Error::description(self))
+            }
         }
     }
 }
